@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Speed Dating</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/dashboard.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='js/d3/d3.js') }}"></script>
+    </head>
+    <body>
+            <svg width="300" height="200"> </svg>
+            <script>
+                var data_test = [2, 4, 8, 10];
+            
+                var svg = d3.select("svg"),
+                    width = svg.attr("width"),
+                    height = svg.attr("height"),
+                    radius = Math.min(width, height) / 2,
+                    g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+            
+                var color = d3.scaleOrdinal(['#4daf4a','#377eb8','#ff7f00','#984ea3','#e41a1c']);
+            
+                // Generate the pie
+                var pie = d3.pie();
+            
+                // Generate the arcs
+                var arc = d3.arc()
+                            .innerRadius(0)
+                            .outerRadius(radius);
+            
+                //Generate groups
+                var arcs = g.selectAll("arc")
+                            .data(pie(data_test))
+                            .enter()
+                            .append("g")
+                            .attr("class", "arc")
+            
+                //Draw arc paths
+                arcs.append("path")
+                    .attr("fill", function(d, i) {
+                        return color(i);
+                    })
+                    .attr("d", arc);
+            </script>
+    
+        <form action="/back" method="Get">
+             <input type="submit" value="BACK">
+        </form>
+
+        <script src="https://d3js.org/d3.v3.min.js"></script>
+        <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+        
+        <div id="outline"></div>
+          <script>
+           
+            var margin = {top: 100, right: 500, bottom: 0, left: 0},
+            width = 960 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+        
+            d3.csv("../static/data/career_profile.csv", function(data) {  
+                data.forEach(function(d){
+                    return{
+                        career: d.career_c,
+                        attractive: +d.attr3_1,
+                        sincere: +d.sinc3_1,
+                        intelligent: +d.intel3_1,
+                        fun: +d.fun3_1,
+                        ambitious: +d.amb3_1,
+                    }
+                }
+            )
+            console.log("data: ", data.map(function(d) { return d.attr3_1; }));
+            
+            var formatPercent = d3.format(".0%");
+        
+        var x = d3.scale.ordinal()
+            .rangeRoundBands([0, width], .1);
+        
+        var y = d3.scale.linear()
+            .range([height, 0]);
+        
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom");
+        
+        var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+            .tickFormat(formatPercent);
+        
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+        .offset([-10, 0])
+          .html(function(d) {
+            return "<strong>Frequency2:</strong> <span style='color:red'>" + d.attr3_1 + "</span>";
+          })
+        
+        var tip2 = d3.tip()
+          .attr('class', 'd3-tip2')
+          .attr('id', 'd3tipnumber2')
+          .html(function(d) {
+            return "<strong>Other Variables:</strong> <span style='color:red'>" + d.attr3_1 + "</span>";
+          })
+        
+        
+        
+        var svg = d3.select("#outline").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        
+        svg.call(tip);
+        svg.call(tip2);
+        
+            var fragment = document.createDocumentFragment();
+            fragment.appendChild(document.getElementById('d3tipnumber2'));
+            document.getElementById('outline').appendChild(fragment);
+            
+        /*data.forEach(d=>{
+          d.frequency = +d.frequency;
+        });*/
+        
+          x.domain(data.map(function(d) { return d.career_c; }));
+          y.domain([0, d3.max(data, function(d) { return d.attr3_1; })]);
+        
+          svg.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(xAxis);
+        
+          svg.append("g")
+              .attr("class", "y axis")
+              .call(yAxis)
+            .append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 6)
+              .attr("dy", ".71em")
+              .style("text-anchor", "end")
+              .text("Frequency 2");
+        
+          svg.selectAll(".bar")
+              .data(data)
+            .enter().append("rect")
+              .attr("class", "bar")
+              .attr("x", function(d) { return x(d.career_c); })
+              .attr("width", x.rangeBand())
+              .attr("y", function(d) { return y(+d.attr3_1); })
+              .attr("height", function(d) { return height - y(+d.attr3_1); })
+              .on("mouseover", function(d) {
+                  tip.show(d);
+                  tip2.show(d)
+                  .attr("position", "absolute")
+                  .style("top", "16px")
+                  .style("left","860px");
+                }).on("mouseout", function(d) {
+                  tip.hide();
+                  tip2.hide();
+                });
+            
+            
+            
+            
+            }); 
+
+        /*var data = 
+            [
+                {letter:"A", frequency2:.08167},
+                {letter:"B", frequency2:.01492},
+                {letter:"C", frequency2:.02780},
+                {letter:"D", frequency2:.04253},
+                {letter:"E", frequency2:.12702},
+                {letter:"F", frequency2:.02288},
+                {letter:"G", frequency2:.02022},
+                {letter:"H", frequency2:.06094},
+                {letter:"I", frequency2:.06973},
+                {letter:"J", frequency2:.00153},
+                {letter:"K", frequency2:.00747},
+                {letter:"L", frequency2:.04025},
+                {letter:"M", frequency2:.02517},
+                {letter:"N", frequency2:.06749}
+            ];*/
+        
+        
+        
+        /*function type(d) {
+          d.frequency2 = +d.frequency2;
+          return d;
+        }*/
+    </script>
+
+    </body>
+</html>
+

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Speed Dating</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/dashboard.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='js/d3/d3.js') }}"></script>
+    </head>
+    <body>
+            <svg width="300" height="200"> </svg>
+            <script>
+                var data_test = [2, 4, 8, 10];
+            
+                var svg = d3.select("svg"),
+                    width = svg.attr("width"),
+                    height = svg.attr("height"),
+                    radius = Math.min(width, height) / 2,
+                    g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+            
+                var color = d3.scaleOrdinal(['#4daf4a','#377eb8','#ff7f00','#984ea3','#e41a1c']);
+            
+                // Generate the pie
+                var pie = d3.pie();
+            
+                // Generate the arcs
+                var arc = d3.arc()
+                            .innerRadius(0)
+                            .outerRadius(radius);
+            
+                //Generate groups
+                var arcs = g.selectAll("arc")
+                            .data(pie(data_test))
+                            .enter()
+                            .append("g")
+                            .attr("class", "arc")
+            
+                //Draw arc paths
+                arcs.append("path")
+                    .attr("fill", function(d, i) {
+                        return color(i);
+                    })
+                    .attr("d", arc);
+            </script>
+    
+        <form action="/back" method="Get">
+             <input type="submit" value="BACK">
+        </form>
+
+        <script src="https://d3js.org/d3.v3.min.js"></script>
+        <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+        
+        <div id="outline"></div>
+          <script>
+           
+            var margin = {top: 100, right: 500, bottom: 0, left: 0},
+            width = 960 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+        
+            d3.csv("../static/data/career_profile.csv", function(data) { 
+                var dataDic = {} 
+                data.forEach(function(d){
+                    var career = d.career_c;
+                    dataDic[career] = [];
+                    ["attr3_1", "sinc3_1", "fun3_1", "amb3_1"].forEach(function(field)
+                {
+                    dataDic[career].push(+d[field]);
+                });
+                
+                })
+                draw_bar(dataDic);
+            });
+            
+        var draw_bar = function(dataDic) {
+                // Define dimensions of vis
+                var margin = { top: 30, right: 50, bottom: 30, left: 50 },
+                    width  = 550 - margin.left - margin.right,
+                    height = 250 - margin.top  - margin.bottom;
+
+                // Make x scale
+                var xScale = d3.scale.ordinal()
+                    .domain(["attr3_1", "sinc3_1", "fun3_1", "amb3_1"])
+                    .rangeRoundBands([0, width], 0.1);
+
+                // Make y scale, the domain will be defined on bar update
+                var yScale = d3.scale.linear()
+                    .range([height, 0]);
+
+                // Create canvas
+                var canvas = d3.select("#vis-container")
+                  .append("svg")
+                    .attr("width",  width  + margin.left + margin.right)
+                    .attr("height", height + margin.top  + margin.bottom)
+                  .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                // Make x-axis and add to canvas
+                var xAxis = d3.svg.axis()
+                    .scale(xScale)
+                    .orient("bottom");
+
+                canvas.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis);
+
+                // Make y-axis and add to canvas
+                var yAxis = d3.svg.axis()
+                    .scale(yScale)
+                    .orient("left");
+
+                var yAxisHandleForUpdate = canvas.append("g")
+                    .attr("class", "y axis")
+                    .call(yAxis);
+
+                yAxisHandleForUpdate.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Value");
+
+                var updateBars = function(data) {
+                    // First update the y-axis domain to match data
+                    yScale.domain( d3.extent(data) );
+                    yAxisHandleForUpdate.call(yAxis);
+
+                    var bars = canvas.selectAll(".bar").data(data);
+
+                    // Add bars for new data
+                    bars.enter()
+                      .append("rect")
+                        .attr("class", "bar")
+                        .attr("x", function(d,i) { return xScale( ["attr3_1", "sinc3_1", "fun3_1", "amb3_1"][i] ); })
+                        .attr("width", xScale.rangeBand())
+                        .attr("y", function(d,i) { return yScale(d); })
+                        .attr("height", function(d,i) { return height - yScale(d); });
+
+                    // Update old ones, already have x / width from before
+                    bars
+                        .transition().duration(250)
+                        .attr("y", function(d,i) { return yScale(d); })
+                        .attr("height", function(d,i) { return height - yScale(d); });
+
+                    // Remove old ones
+                    bars.exit().remove();
+                };
+
+                // Handler for dropdown value change
+                var dropdownChange = function() {
+                    var newCareer = d3.select(this).property('value'),
+                        newData   = dataDic[newCareer];
+
+                    updateBars(newData);
+                };
+
+                // Get names of cereals, for dropdown
+                var careers = Object.keys(dataDic).sort();
+
+                var dropdown = d3.select("#vis-container")
+                    .insert("select", "svg")
+                    .on("change", dropdownChange);
+
+                dropdown.selectAll("option")
+                    .data(careers)
+                  .enter().append("option")
+                    .attr("value", function (d) { return d; })
+                    .text(function (d) {
+                        return d[0].toUpperCase() + d.slice(1,d.length); // capitalize 1st letter
+                    });
+
+                var initialData = dataDic[ careers[0] ];
+                updateBars(initialData);
+            };
+        
+    </script>
+
+    </body>
+</html>

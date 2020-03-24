@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Speed Dating HOME</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/home.css') }}">
+    </head>
+    <body>
+
+<form action="/back" method="Get">
+             <input type="submit" value="BACK">
+        </form>
+        <form action="/new-viz" method="Post">
+            Age : <input type="number" name="age" value="">
+                
+<br><br> What gender do you identify with ? <br><br>
+            <select name="gender">
+                <option value="1" selected>Male</option>
+                <option value="2">Female</option>         
+            </select>
+            
+
+
+
+
+
+            <br><br> What is your intended career ? <br><br>
+            <select name="career">
+            <option value="1" selected>Lawyer</option>
+               <option value="2">Academic/Research</option>
+               <option value="3">Psychologist</option>
+               <option value="4">Doctor</option>
+               <option value="5">Engineer</option>
+               <option value="6">Creative Arts</option>
+               <option value="7">Finance</option>
+               <option value="8">Real Estate</option>
+               <option value="9">Humanitarian Affairs</option>
+               <option value="10">Undecided</option>
+               <option value="11">Social Work</option>
+               <option value="12">Speech Pathology</option>
+               <option value="13">Politics</option>
+               <option value="14">Athletics</option>
+               <option value="15">Other</option>
+               <option value="16">Journalism</option>
+               <option value="17">Architecture</option>
+            </select>
+            
+            <br><br> how frequently do you go on dates ? <br><br>
+            <select name="number_dates">
+                <option value="1" selected>Several times a week</option>
+                <option value="2">Twice a week</option>
+                <option value="3">Once a week</option>
+                <option value="4">Twice a month</option>
+                <option value="5">Once a month</option>
+                <option value="6">Several times a year</option>
+                <option value="7">Almost never</option>
+            </select>
+            
+            <br><br> What's your favorite activity ? <br><br>
+            
+            <select name="favorite_activity">
+                <option value="sports" selected>Playing sports/ athletics</option>
+                <option value="tvsports">Watching sports</option>
+                <option value="excersice">Body building/exercising</option>
+                <option value="dining">Dining out</option>
+                <option value="museums">Museums/galleries</option>
+                <option value="art">Art</option>
+                <option value="hiking">Hiking/camping</option>
+                <option value="gaming">Gaming</option>
+                <option value="clubbing">Dancing/clubbing</option>
+                <option value="reading">Reading</option>
+                <option value="tv">Watching TV</option>
+                <option value="theater">Theater</option>
+                <option value="movies">Movies</option>
+                <option value="concerts">Going to concerts</option>
+                <option value="music">Music</option>
+                <option value="shopping">Shopping</option>
+                <option value="yoga">Yoga/meditation</option>
+            </select>
+            
+            <br><br> What's the most important thing you look for in a potential date ? <br><br>
+            
+            <select name="important_thing">
+                <option value="attractive" selected>Attractive</option>
+                <option value="sincere">Sincere</option>
+                <option value="intelligent">Intelligent</option>
+                <option value="fun">Fun</option>
+                <option value="ambitious">Ambitious</option>
+                <option value="shared_interest">Shared Interest</option>
+            </select>
+            
+            
+            <br><br> What do you think your best attribute is ? <br><br>
+            
+            <select name="best_attribute">
+                <option value="attractive" selected>Attractive</option>
+                <option value="sincere">Sincere</option>
+                <option value="intelligent">Intelligent</option>
+                <option value="fun">Fun</option>
+                <option value="ambitious">Ambitious</option>
+                <option value="shared_interest">Shared Interest</option>
+            </select>
+            
+            <br><br>
+            
+            <input type="submit" value="SUBMIT">
+        </form>
+    </body>
+</html>
