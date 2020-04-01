@@ -10,15 +10,63 @@ html, body, #container {
     margin: 0;
     padding: 0;
 }
+    body {
+      font-family:"avenir next", Arial, sans-serif;
+      font-size: 12px;
+      color: #696969;
+    }
+
+    .ticks {
+      font-size: 10px;
+    }
+
+    .track,
+    .track-inset,
+    .track-overlay {
+      stroke-linecap: round;
+    }
+
+    .track {
+      stroke: #000;
+      stroke-opacity: 0.3;
+      stroke-width: 10px;
+    }
+
+    .track-inset {
+      stroke: #dcdcdc;
+      stroke-width: 8px;
+    }
+
+    .track-overlay {
+      pointer-events: stroke;
+      stroke-width: 50px;
+      stroke: transparent;
+      cursor: crosshair;
+    }
+
+    .handle {
+      fill: #fff;
+      stroke: #000;
+      stroke-opacity: 0.5;
+      stroke-width: 1.25px;
+    }
 </style>
 </head>
 <body>
+    <input type="checkbox" id="myCheckbox"> Consolidate from original date
+    <input type="checkbox" id="checkboxMutations"> Investigate on specific mutations
   <div id="selectors"></div>
+    <div id="slider"></div>
   <div id="container"></div>
   <script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.1.0/topojson.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
   <script>
 
+
+//var margin = {top:0, right:50, bottom:0, left:50},
+//    width = 960 - margin.left - margin.right,
+//    height = 200 - margin.top - margin.bottom;
 
 const width = document.getElementById("container").offsetWidth * 1.0,
     height = 500,
@@ -30,6 +78,27 @@ const svg = d3.select('#container').append("svg")
     .attr("width", width)
     .attr("height", height)
     .attr("class", "svg");
+
+// SLIDER
+
+//var margin = {top:0, right:50, bottom:0, left:50};
+
+var margin = {top:0, right:50, bottom:0, left:50},
+    width_slider = 960 - margin.left - margin.right,
+    height_slider = 200 - margin.top - margin.bottom;
+
+var formatDateIntoYear = d3.timeFormat("%b %Y");
+var formatDate = d3.timeFormat("%d %b %Y");
+var parseDate = d3.timeParse("%m/%d/%y");
+var mySliderDate = d3.timeFormat("%Y-%m-%d");
+
+var svgSlider = d3.select("#slider")
+    .append("svg")
+    .attr("width", width_slider + margin.left + margin.right)
+    .attr("height", height_slider);
+    
+
+// END SLIDER
 
 var legend = svg.append('g')
     .attr('transform', 'translate(40, 50)');
@@ -141,13 +210,20 @@ const path = d3.geoPath()
 const cGroup = svg.append("g");
     
 var filteredArray = [];
+var mapArray = [];
+var intermediateArray = [];
 var promises = [];
 promises.push(d3.json("../static/data/Map/world-countries-no-antartica.json"));
-promises.push(d3.csv("../static/data/Map/map_data_test_full.csv"));
+promises.push(d3.csv("../static/data/Map/map_mutations_data_3.csv"));
     
 Promise.all(promises).then(function(values) {
+
     const geojson = values[0];
     const scores = values[1];
+
+    for (var i =0; i < scores.length; i++){
+        mapArray.push(scores[i])
+      }
 
     var dates = [];
     for (var i =0; i < scores.length; i++){
@@ -156,10 +232,92 @@ Promise.all(promises).then(function(values) {
 
     dates = d3.set(dates).values();
     var last_date = dates[dates.length - 1];
-    console.log("DATES", dates)
 
-    var config = {"defaultValue":"C_proportion", "defaultDate":last_date};
+    var successiveMutations = [];
+    for (var i =0; i < scores.length; i++){
+        successiveMutations.push(scores[i].All_mutations)
+    }
 
+    successiveMutations = d3.set(successiveMutations).values();
+    var last_mutation = successiveMutations[successiveMutations.length - 1];
+
+    // SLIDER
+
+    console.log("FIRST DATE", dates[0])
+    console.log("LAST DATE", last_date)
+
+    //var startDate = new Date("2004-11-01"),
+    //endDate = new Date("2017-04-01");
+
+    var startDate = new Date(dates[0]),
+    endDate = new Date(last_date);
+
+    var x = d3.scaleTime()
+        .domain([startDate, endDate])
+        .range([0, width_slider])
+        .clamp(true);
+
+    var slider = svgSlider.append("g")
+        .attr("class", "slider")
+        .attr("transform", "translate(" + margin.left + "," + height_slider / 2 + ")");
+
+    slider.append("line")
+        .attr("class", "track")
+        .attr("x1", x.range()[0])
+        .attr("x2", x.range()[1])
+      .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+        .attr("class", "track-inset")
+      .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+        .attr("class", "track-overlay")
+        .call(d3.drag()
+            .on("start.interrupt", function() { slider.interrupt(); })
+            .on("start drag", function() { update(x.invert(d3.event.x)); }));
+
+    slider.insert("g", ".track-overlay")
+        .attr("class", "ticks")
+        .attr("transform", "translate(0," + 18 + ")")
+      .selectAll("text")
+        .data(x.ticks(10))
+        .enter()
+        .append("text")
+        .attr("x", x)
+        .attr("y", 10)
+        .attr("text-anchor", "middle")
+        .text(function(d) { return formatDateIntoYear(d); });
+
+    var handle = slider.insert("circle", ".track-overlay")
+        .attr("class", "handle")
+        .attr("r", 9);
+
+    var label = slider.append("text")  
+        .attr("class", "label")
+        .attr("text-anchor", "middle")
+        .text(formatDate(startDate))
+        .attr("transform", "translate(0," + (-25) + ")")
+
+    function update(h) {
+  // update position and text of label according to slider scale
+  handle.attr("cx", x(h));
+  label
+    .attr("x", x(h))
+    .text(formatDate(h));
+
+  // filter data set and redraw plot
+  var newData = dataset.filter(function(d) {
+    return d.date < h;
+  })
+  drawPlot(newData);
+}
+
+    // END SLIDER
+
+    //console.log("DATES", dates)
+
+    var config = {"defaultValue":"Mutations_amount", "defaultDate":last_date, "defaultAmount":0,
+"defaultMutation":last_mutation};
+
+    
+    // Date dropdown
     var date_select = d3.select('#selectors').append("select")
         .attr("class", "date-select");
 
@@ -173,6 +331,20 @@ Promise.all(promises).then(function(values) {
         } 
     }
 
+    // Mutations selector
+    var mutation_select = d3.select('#selectors').append("select")
+        .attr("class", "mutation-select");
+
+    for (var i = 0; i < successiveMutations.length; i++) {
+        var opt_mutation = mutation_select.append("option")
+          .attr("value", successiveMutations[i])
+          .text(successiveMutations[i]);
+        
+        if (successiveMutations[i] === config.defaultMutation) {
+          opt_mutation.attr("selected", "true");
+        } 
+    }
+
     var b  = path.bounds(geojson),
         s = .80 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
         t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
@@ -181,7 +353,7 @@ Promise.all(promises).then(function(values) {
         .scale(s)
         .translate(t);
 
-    console.log("GEOJSON", geojson)
+    //console.log("GEOJSON", geojson)
     
     cGroup.selectAll("path")
         .data(geojson.features)
@@ -195,10 +367,14 @@ Promise.all(promises).then(function(values) {
 
     // Dropdown
 
-    console.log("FULL", scores)
-    console.log("KEYS", d3.keys(scores[0]).slice(-4))
+    //console.log("FULL", scores)
+    //console.log("TESTGROUP", d3.group(scores, d => d.country))
+    //console.log("TESTGROUP", groupBy(data, 'name'));
+    
+    //console.log("KEYS", d3.keys(scores[0]).slice(-4))
+    //console.log("KEYS", d3.keys(scores[0]).slice(5).slice(0, 3))
 
-    fields = d3.keys(scores[0]).slice(-4)
+    fields = d3.keys(scores[0]).slice(5).slice(0, 3)
     var option_select = d3.select('#selectors').append("select")
         .attr("class", "option-select");
 
@@ -211,6 +387,11 @@ Promise.all(promises).then(function(values) {
           opt.attr("selected", "true");
         } 
     }
+
+    var amount_select = d3.select('#selectors').append("select")
+        .attr("class", "amount-select");
+
+
 
     // End Dropdown
 
@@ -229,43 +410,107 @@ Promise.all(promises).then(function(values) {
     }
 
       
-    function drawMap(dataColumn, selectedDate){ 
+    function drawMap(dataColumn, selectedDate, selectedAmount, selectedMutation){ 
 
-    //var filteredArray = [];
+
+    // IF MUTATION BOX CHECKED
+    if(d3.select("#checkboxMutations").property("checked")){
+
+
+    $("#selectors").find(".amount-select").empty()
+
+    // IF BOX SELECTED
+    if(d3.select("#myCheckbox").property("checked")){
+        if (dates[0] == selectedDate){
+            var dateArray = [new Date(selectedDate)];
+        }
+        else if (dates[0] !== selectedDate){
+            original_date = new Date(dates[0]);
+            original_date.setDate(original_date.getDate()-1);
+            var dateArray = d3.timeDays(original_date, new Date(selectedDate));
+        }
+
+        
+        var dateArrayFormatted = [];
+        for (var i =0; i < dateArray.length; i++){
+            dateArrayFormatted.push(mySliderDate(dateArray[i]))
+        }
+
+
+        //console.log("DATE ARRAY", dateArrayFormatted)
+
+        // Filtrage par date
+
+        for (var i =0; i < scores.length; i++){
+          if (d3.set(dateArrayFormatted).has(scores[i].Sample_collection_date) && scores[i].All_mutations===selectedMutation){
+            intermediateArray.push(scores[i])
+          }
+        }
+    }
+
+    // IF BOX NOT SELECTED
+    else{
     for (var i =0; i < scores.length; i++){
-      if (scores[i].Sample_collection_date===selectedDate){
-        filteredArray.push(scores[i])
+      if (scores[i].Sample_collection_date===selectedDate && scores[i].All_mutations===selectedMutation){
+        intermediateArray.push(scores[i])
+      }
+    }
+    }
+
+    console.log("MUTATION", selectedMutation)
+    console.log("INTERMARRAY", intermediateArray)
+
+    // Groupby ici
+
+    var expensesCount = d3.nest()
+      //.key(function(d) { return [d.country, d.code, d.Sample_collection_date, d[dataColumn]]; })
+      .key(function(d) { return [d.country, d.code, d.All_mutations]; })
+      .rollup(function(v) { return v.length; })
+      .entries(intermediateArray);
+
+    var possibilities = _.pluck(expensesCount, 'value');
+    possibilities = d3.set(possibilities).values();
+
+    var keyz = _.pluck(expensesCount, 'key')
+    var possibilities = [];
+    for (var i = 0; i < keyz.length; i++){
+        possibilities.push(+keyz[i].split(',').slice(-1))
+    }
+
+    possibilities = d3.set(possibilities.sort(d3.ascending)).values();
+    
+    for (var i =0; i < expensesCount.length; i++){
+      if (expensesCount[i].key.split(',').slice(-1)[0]===$("#selectors").find(".mutation-select").val()){
+        filteredArray.push(expensesCount[i])
       }
     }
 
-    console.log("FILTERED", filteredArray)
-
-    const min = d3.min(filteredArray, function(e) { return +e[dataColumn]; }),
-    max = d3.max(filteredArray, function(e) { return +e[dataColumn]; });
+    const min = d3.min(filteredArray, function(e) { return +e.value; }),
+    max = d3.max(filteredArray, function(e) { return +e.value; });
     var quantile = d3.scaleQuantile().domain([min, max])
         .range(colors);
     //    
     var legend = addLegend(min, max);
     var tooltip = addTooltip(dataColumn);
     filteredArray.forEach(function(e,i) {
-        var countryPath = d3.select("#code" + e.code);
+        var countryPath = d3.select("#code" + e.key.split(",").slice(1,2)[0]);
         countryPath
-            .attr("scorecolor", quantile(+e[dataColumn]))
-            .style("fill", function(d) { return quantile(+e[dataColumn]); })
+            .attr("scorecolor", quantile(+e.value))
+            .style("fill", function(d) { return quantile(+e.value); })
             //.style("fill", "#000000")
             .on("mouseover", function(d) {
                 countryPath.style("fill", "#ff0000");
                 tooltip.style("display", null);
                 tooltip.select('#tooltip-country')
-                    .text(shortCountryName(e.country));
+                    .text(shortCountryName(e.key.split(",").slice(0,1)[0]));
                 tooltip.select('#tooltip-score')
-                    .text(e[dataColumn]);
+                    .text(e.value);
                 //legend.select("#cursor")
                 //    .attr('transform', 'translate(' + (legendCellSize + 5) + ', ' + (getColorIndex(quantile(+e.score)) * legendCellSize) + ')')
                 //    .style("display", null);
             })
             .on("mouseout", function(d) {
-                countryPath.style("fill", function(d) { return quantile(+e[dataColumn]); });
+                countryPath.style("fill", function(d) { return quantile(+e.value); });
                 tooltip.style("display", "none");
                 //legend.select("#cursor").style("display", "none");
             })
@@ -276,47 +521,177 @@ Promise.all(promises).then(function(values) {
     });
 
 
-}
+    }
 
-    drawMap(config.defaultValue, config.defaultDate);
+    // IF MUTATIONS BOX NOT CHECKED
+    else{
+
+    $("#selectors").find(".amount-select").empty()
+
+    // IF BOX SELECTED
+    if(d3.select("#myCheckbox").property("checked")){
+        if (dates[0] == selectedDate){
+            var dateArray = [new Date(selectedDate)];
+        }
+        else if (dates[0] !== selectedDate){
+            original_date = new Date(dates[0]);
+            original_date.setDate(original_date.getDate()-1);
+            var dateArray = d3.timeDays(original_date, new Date(selectedDate));
+        }
+
+        
+        var dateArrayFormatted = [];
+        for (var i =0; i < dateArray.length; i++){
+            dateArrayFormatted.push(mySliderDate(dateArray[i]))
+        }
+
+
+        console.log("DATE ARRAY", dateArrayFormatted)
+
+        //mySliderDate(dateArray[i])
+
+        //console.log("True ?", d3.set(dateArrayFormatted).has('2018-01-08'));
+
+        // Filtrage par date
+
+        for (var i =0; i < scores.length; i++){
+          if (d3.set(dateArrayFormatted).has(scores[i].Sample_collection_date)){
+            intermediateArray.push(scores[i])
+          }
+        }
+    }
+
+    // IF BOX NOT SELECTED
+    else{
+    for (var i =0; i < scores.length; i++){
+      if (scores[i].Sample_collection_date===selectedDate){
+        intermediateArray.push(scores[i])
+      }
+    }
+    }
+
+    // Groupby ici
+
+    var expensesCount = d3.nest()
+      //.key(function(d) { return [d.country, d.code, d.Sample_collection_date, d[dataColumn]]; })
+      .key(function(d) { return [d.country, d.code, d[dataColumn]]; })
+      .rollup(function(v) { return v.length; })
+      .entries(intermediateArray);
+
+    var possibilities = _.pluck(expensesCount, 'value');
+    possibilities = d3.set(possibilities).values();
+
+    var keyz = _.pluck(expensesCount, 'key')
+
+    //var data = [{name: 'dan', value: 40}, {name: 'ryan', value: 50}];
+    //var getKeys = _.pluck(data, 'name');
+    //console.log("TESTGROUP", JSON.stringify(expensesCount));
+    //console.log("TESTGROUP", expensesCount);
+
+    var possibilities = [];
+    for (var i = 0; i < keyz.length; i++){
+        possibilities.push(+keyz[i].split(',').slice(-1))
+    }
+
+    possibilities = d3.set(possibilities.sort(d3.ascending)).values();
+
+
+
+    //console.log("expc", expensesCount)
+    //console.log("POSSIBILITIES", possibilities)
+
+
     
-    option_select.on("change", function() {
-      legend.remove();
-      legend = svg.append('g')
-          .attr('transform', 'translate(40, 50)');
+    //var amount_select = d3.select('#selectors').append("select")
+    //    .attr("class", "amount-select");
 
-      d3.select("#text_title").remove()
-      svg.append("text")
-        .attr("id", "text_title")
-        .attr("x", (width / 2))
-        .attr("y", 25)
-        .attr("text-anchor", "middle")
-        .style("fill", "#c1d3b8")
-        .style("font-weight", "300")
-        .style("font-size", "16px")
-        .text($("#selectors").find(".option-select").val() + " in reported COVID-19 nucleotide sequences");
+    //console.log("JEVEUX", $("#selectors").find(".option-select").val())
 
-      /* Reset Map drawing */
-      filteredArray.forEach(function(e,i) {
-        var countryPath = d3.select("#code" + e.code);
+    for (var i = 0; i < possibilities.length; i++) {
+          if ($("#selectors").find(".option-select").val()=='Mutations_amount'){
+        var opt_amount = amount_select.append("option")
+          .attr("value", possibilities[i])
+          .text(possibilities[i] + " mutations");
+        }
+          else if ($("#selectors").find(".option-select").val()=='C_losses'){
+        var opt_amount = amount_select.append("option")
+          .attr("value", possibilities[i])
+          .text(possibilities[i] + " C perdus");
+        }
+          else if ($("#selectors").find(".option-select").val()=='C_gains'){
+        var opt_amount = amount_select.append("option")
+          .attr("value", possibilities[i])
+          .text(possibilities[i] + " C gagnés");
+        }
+
+        if (possibilities[i] === selectedAmount) {
+          opt_amount.attr("selected", "true");
+        } 
+    }
+
+    //console.log("DEBUG", $("#selectors").find(".amount-select").attr())
+
+    //console.log("SELECT AM", $("#selectors").find(".amount-select").text().split())
+
+    //console.log("INTERM ARRAY", expensesCount[0].value)
+    
+    for (var i =0; i < expensesCount.length; i++){
+      if (+expensesCount[i].key.split(',').slice(-1)[0]===+$("#selectors").find(".amount-select").val()){
+        filteredArray.push(expensesCount[i])
+      }
+    }
+    
+
+    //console.log("VALUE", +$("#selectors").find(".amount-select").val())
+
+    //filteredArray = intermediateArray;
+    // Fin Groupby
+
+
+
+    //console.log("FILTERED", filteredArray)
+
+    const min = d3.min(filteredArray, function(e) { return +e.value; }),
+    max = d3.max(filteredArray, function(e) { return +e.value; });
+    var quantile = d3.scaleQuantile().domain([min, max])
+        .range(colors);
+    //    
+    var legend = addLegend(min, max);
+    var tooltip = addTooltip(dataColumn);
+    filteredArray.forEach(function(e,i) {
+        var countryPath = d3.select("#code" + e.key.split(",").slice(1,2)[0]);
         countryPath
-            .attr("scorecolor", "#000000")
-            .style("fill", "#000000")
+            .attr("scorecolor", quantile(+e.value))
+            .style("fill", function(d) { return quantile(+e.value); })
+            //.style("fill", "#000000")
             .on("mouseover", function(d) {
+                countryPath.style("fill", "#ff0000");
+                tooltip.style("display", null);
+                tooltip.select('#tooltip-country')
+                    .text(shortCountryName(e.key.split(",").slice(0,1)[0]));
+                tooltip.select('#tooltip-score')
+                    .text(e.value);
+                //legend.select("#cursor")
+                //    .attr('transform', 'translate(' + (legendCellSize + 5) + ', ' + (getColorIndex(quantile(+e.score)) * legendCellSize) + ')')
+                //    .style("display", null);
             })
             .on("mouseout", function(d) {
+                countryPath.style("fill", function(d) { return quantile(+e.value); });
+                tooltip.style("display", "none");
+                //legend.select("#cursor").style("display", "none");
             })
             .on("mousemove", function(d) {
+                var mouse = d3.mouse(this);
+                tooltip.attr("transform", "translate(" + mouse[0] + "," + (mouse[1] - 75) + ")");
             });
-      filteredArray = [];
-    });
-      /* End Reset Map Drawing */
-
-      d3.select("#tooltip").remove()
-      drawMap($("#selectors").find(".option-select").val(), $("#selectors").find(".date-select").val());
     });
 
-    date_select.on("change", function() {
+}
+}
+
+    drawMap(config.defaultValue, config.defaultDate, config.defaultAmount);
+    
+    function updateMap() {
       legend.remove();
       legend = svg.append('g')
           .attr('transform', 'translate(40, 50)');
@@ -334,10 +709,13 @@ Promise.all(promises).then(function(values) {
 
             /* Reset Map drawing */
       filteredArray.forEach(function(e,i) {
-        var countryPath = d3.select("#code" + e.code);
+        var countryPath = d3.select("#code" + e.key.split(",").slice(1,2)[0]);
+        //var countryPath = d3.select("#code" + e.code);
         countryPath
-            .attr("scorecolor", "#000000")
-            .style("fill", "#000000")
+            //.attr("scorecolor", "#000000")
+            //.style("fill", "#000000")
+            .attr("scorecolor", "#808080")
+            .style("fill", "#808080")
             .on("mouseover", function(d) {
             })
             .on("mouseout", function(d) {
@@ -345,11 +723,22 @@ Promise.all(promises).then(function(values) {
             .on("mousemove", function(d) {
             });
       filteredArray = [];
+      intermediateArray = [];
+      mapArray = [];
     });
       /* End Reset Map Drawing */
       d3.select("#tooltip").remove()
-      drawMap($("#selectors").find(".option-select").val(), $("#selectors").find(".date-select").val());
-    });
+      var amount_mem = $("#selectors").find(".amount-select").val();
+      drawMap($("#selectors").find(".option-select").val(), $("#selectors").find(".date-select").val(), amount_mem, $("#selectors").find(".mutation-select").val());
+    }
+
+    option_select.on("change", updateMap);
+    date_select.on("change", updateMap);
+    amount_select.on("change", updateMap);
+    mutation_select.on("change", updateMap);
+    d3.select("#myCheckbox").on("change", updateMap);
+    d3.select("#checkboxMutations").on("change", updateMap);
+
 
 });
 
